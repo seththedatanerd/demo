@@ -6,6 +6,7 @@ export interface Patient {
   name: string
   dob: string
   phone: string
+  email?: string
   insurer: string
   insuranceExpiry?: string
   lastSeen?: string

@@ -3,14 +3,14 @@ import { devtools } from 'zustand/middleware'
 import { TimelineSlice, createTimelineSlice } from './slices/timeline'
 import { DemoSlice, createDemoSlice } from './slices/demo'
 import { AutopilotSlice, createAutopilotSlice } from './slices/autopilot'
-import { DataSlice, createDataSlice, Patient } from './slices/data'
+import { DataSlice, createDataSlice, Patient, Appointment } from './slices/data'
 import { CallSlice, createCallSlice } from './slices/calls'
 import { RoleSlice, createRoleSlice } from './slices/role'
 import { AIActionSlice, createAIActionSlice } from './slices/aiActions'
 import { ProductsSlice, createProductsSlice } from './slices/products'
 
 // Re-export types
-export type { Patient }
+export type { Patient, Appointment }
 
 // Combined store type
 export type AppState = TimelineSlice & DemoSlice & AutopilotSlice & DataSlice & CallSlice & RoleSlice & AIActionSlice & ProductsSlice

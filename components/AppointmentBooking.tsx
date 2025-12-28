@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { useData, useRole, Patient } from '@/store'
+import { useData, useRole, Patient, Appointment } from '@/store'
 import { AvailabilityEngine } from '@/services/availability'
 import { AppointmentTemplateService } from '@/services/appointment-templates'
 import { AvailabilitySlot, AppointmentTemplate, EnhancedAppointment } from '@/types/appointments'
@@ -133,7 +133,7 @@ export default function AppointmentBooking({
     if (selectedPatient) {
       const suggestions = AppointmentTemplateService.suggestTemplates({
         patientId: selectedPatient,
-        patientHistory: appointments.filter(a => a.patientId === selectedPatient),
+        patientHistory: appointments.filter((a: Appointment) => a.patientId === selectedPatient),
         urgency: 'routine'
       })
       setTemplateSuggestions(suggestions)
@@ -148,7 +148,7 @@ export default function AppointmentBooking({
     
     try {
       // Convert current appointments to enhanced format for conflict checking
-      const enhancedAppointments: EnhancedAppointment[] = appointments.map(apt => ({
+      const enhancedAppointments: EnhancedAppointment[] = appointments.map((apt: Appointment) => ({
         ...apt,
         duration: 30, // Default duration
         practitionerId: apt.practitionerId || apt.clinician || 'unknown',
