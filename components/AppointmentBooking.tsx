@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { useData, useRole } from '@/store'
+import { useData, useRole, Patient } from '@/store'
 import { AvailabilityEngine } from '@/services/availability'
 import { AppointmentTemplateService } from '@/services/appointment-templates'
 import { AvailabilitySlot, AppointmentTemplate, EnhancedAppointment } from '@/types/appointments'
@@ -50,7 +50,7 @@ export default function AppointmentBooking({
 
   // Filter patients based on search
   const filteredPatients = patientSearch.trim() 
-    ? patients.filter(p => 
+    ? patients.filter((p: Patient) => 
         p.name.toLowerCase().includes(patientSearch.toLowerCase()) ||
         p.phone?.includes(patientSearch) ||
         p.email?.toLowerCase().includes(patientSearch.toLowerCase())
