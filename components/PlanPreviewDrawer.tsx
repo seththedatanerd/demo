@@ -21,6 +21,8 @@ export default function PlanPreviewDrawer({ plan, isOpen, onClose, onExecuted, o
   const startedAtRef = useRef<number | null>(null)
 
   const handleExecute = async () => {
+    if (!plan) return
+    
     try {
       // Initialize run simulation for visuals
       setIsRunning(true)
@@ -116,7 +118,7 @@ export default function PlanPreviewDrawer({ plan, isOpen, onClose, onExecuted, o
 
   useEffect(() => {
     // Reset step states when plan changes or drawer opens
-    if (plan?.steps && isOpen) {
+    if (plan && plan.steps && isOpen) {
       setIsRunning(false)
       setStepStatuses(Array.from({ length: plan.steps.length }, () => 'pending'))
       setProgress(0)

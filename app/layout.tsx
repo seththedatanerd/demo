@@ -14,12 +14,14 @@ import FollowUpSuggestions from '@/components/FollowUpSuggestions'
 import AICallHeader from '@/components/AICallHeader'
 import CallSummaryModal from '@/components/CallSummaryModal'
 import RoleSelector from '@/components/RoleSelector'
+import ModeSelector from '@/components/ModeSelector'
 import AICommandOmni from '@/components/AICommandOmni'
 import { reminderEngine } from '@/services/reminder-engine'
 import { ambientScribe } from '@/services/ambient-scribe'
 import { careAutopilot } from '@/services/care-autopilot'
 import { Plan } from '@/types/core'
 import { useDemo, useAutopilot, useData, useTimeline, useCalls, useRole } from '@/store'
+import GlobalSearch from '@/components/GlobalSearch'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -39,6 +41,7 @@ export default function RootLayout({
   const [completedCall, setCompletedCall] = useState<any>(null)
   const [lastShownCallId, setLastShownCallId] = useState<string | null>(null)
   const [isClient, setIsClient] = useState(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   
   const pathname = usePathname()
   const { demoMode, resetDemo } = useDemo()
@@ -70,14 +73,13 @@ export default function RootLayout({
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [])
 
-  // Load JSON seeds on first mount
+  // Load demo data on client mount to avoid hydration issues with dates
   useEffect(() => {
-    if (loadFromJson) {
-      loadFromJson()
-    } else if (loadDemoData) {
+    // Always load demo data on client to ensure appointments are populated
+    if (loadDemoData) {
       loadDemoData()
     }
-  }, [loadFromJson, loadDemoData])
+  }, [loadDemoData])
 
   // Connect services to global timeline
   useEffect(() => {
@@ -138,11 +140,12 @@ export default function RootLayout({
   }
 
   const getPageTitle = () => {
-    if (pathname === '/') return 'Control Room'
+    if (pathname === '/' || pathname === '/practice') return 'Control Room'
     if (pathname === '/calendar') return 'Calendar'
     if (pathname === '/patients') return 'Patients'
     if (pathname.startsWith('/patients/')) return 'Patient Record'
     if (pathname === '/billing') return 'Billing'
+    if (pathname === '/communications') return 'Communications'
     if (pathname === '/insights') return 'Insights'
     if (pathname === '/messages') return 'Messages'
     if (pathname === '/tasks') return 'Tasks'
@@ -150,15 +153,18 @@ export default function RootLayout({
     if (pathname === '/scribe') return 'Ambient Scribe'
     if (pathname === '/intake') return 'AI Intake'
     if (pathname === '/care') return 'Care Autopilot'
+    if (pathname.startsWith('/patient')) return 'Patient Portal'
     return 'Data Ravens'
   }
 
   // Navigation items with role-based visibility
   const allNavigationItems = [
-    { href: '/', label: 'Control Room', show: true }, // Always visible
+    { href: '/practice', label: 'Control Room', show: true }, // Always visible
     { href: '/calendar', label: 'Calendar', show: isClient ? hasPermission('canViewCalendar') : true },
     { href: '/patients', label: 'Patients', show: isClient ? hasPermission('canViewPatients') : true },
+    { href: '/products', label: 'Products', show: isClient ? hasPermission('canViewBilling') : true },
     { href: '/billing', label: 'Billing', show: isClient ? hasPermission('canViewBilling') : true },
+    { href: '/communications', label: 'Communications', show: isClient ? hasPermission('canViewMessages') : true },
     { href: '/messages', label: 'Messages', show: isClient ? hasPermission('canViewMessages') : true },
     { href: '/tasks', label: 'Tasks', show: isClient ? hasPermission('canViewTasks') : true },
     { href: '/calls', label: 'Calls', show: isClient ? hasPermission('canViewCalls') : true },
@@ -174,79 +180,117 @@ export default function RootLayout({
     <html lang="en">
       <body className={inter.className}>
         <div className="min-h-screen bg-background">
-          {/* AI Call Header - client-only to avoid SSR mismatch */}
-          {isClient && <AICallHeader />}
+          {/* AI Call Header - client-only to avoid SSR mismatch - only for practice routes */}
+          {isClient && !pathname.startsWith('/patient') && <AICallHeader />}
           
           {/* Demo Mode Ribbon - client-only to avoid SSR mismatch from persisted state */}
           {isClient && demoMode && (
             <div className="bg-amber-100 border-b border-amber-200 px-4 py-2 text-sm text-amber-800">
               <div className="flex items-center justify-between max-w-7xl mx-auto">
                 <span>🎭 Demo Mode - Deterministic data for presentation</span>
-                <button 
-                  onClick={resetDemo}
-                  className="text-amber-600 hover:text-amber-800 font-medium"
-                >
-                  Reset demo
-                </button>
+                <div className="flex items-center gap-4">
+                  <button 
+                    onClick={resetDemo}
+                    className="text-amber-600 hover:text-amber-800 font-medium"
+                  >
+                    Reset demo
+                  </button>
+                  {/* Simulate Call Button - inside demo ribbon */}
+                  {!pathname.startsWith('/patient') && (
+                    <button
+                      onClick={() => {
+                        window.dispatchEvent(new CustomEvent('simulateCall'))
+                      }}
+                      className="px-3 py-1 bg-red-500 text-white rounded-lg text-sm hover:bg-red-600 flex items-center gap-2 font-medium transition-colors"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                      </svg>
+                      <span>Simulate Call</span>
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           )}
           
           {/* Main App Layout */}
           <div className="flex min-h-screen">
-            {/* Modern Sidebar Navigation */}
-            {/* Sidebar Navigation - render placeholder on SSR to avoid hydration diff */}
-            <nav className="w-64 bg-white border-r border-gray-200 flex flex-col" suppressHydrationWarning>
-              {/* Practice Logo/Brand */}
-              <div className="p-6 border-b border-gray-100">
-                <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-cyan-600 rounded-lg flex items-center justify-center">
-                    <span className="text-white font-bold text-sm">DR</span>
-                  </div>
-                  <div>
-                    <div className="font-semibold text-gray-900 text-sm">Data Ravens</div>
-                    <div className="text-xs text-gray-500">AI Practice Management</div>
-                  </div>
+            {/* Sidebar Navigation */}
+            <nav className={`${sidebarCollapsed ? 'w-20' : 'w-72'} bg-white border-r border-gray-200 flex flex-col transition-all duration-300 ease-in-out`} suppressHydrationWarning>
+              {/* Header with Toggle & Logo */}
+              <div className="p-4 border-b border-gray-100">
+                <div className="flex items-center gap-3">
+                  {/* Hamburger Menu Toggle */}
+                  <button
+                    onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+                    className="w-10 h-10 rounded-xl flex items-center justify-center text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors flex-shrink-0"
+                    title={sidebarCollapsed ? 'Expand menu' : 'Collapse menu'}
+                  >
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
+                  </button>
+                  
+                  {/* Logo */}
+                  {!sidebarCollapsed && (
+                    <div className="flex items-center gap-3 overflow-hidden">
+                      <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-cyan-600 rounded-xl flex items-center justify-center flex-shrink-0">
+                        <span className="text-white font-bold text-base">DR</span>
+                      </div>
+                      <div className="overflow-hidden">
+                        <div className="font-semibold text-gray-900 text-base">Data Ravens</div>
+                        <div className="text-sm text-gray-500">AI Practice Management</div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
               
               {/* Navigation Links */}
-              <div className="flex-1 p-4">
+              <div className="flex-1 p-3 overflow-y-auto">
                 <div className="space-y-1">
                   {navigationItems.map((item) => {
-                    const isActive = pathname === item.href || (item.href === '/patients' && pathname.startsWith('/patients'))
+                    const isActive = pathname === item.href || 
+                      (item.href === '/patients' && pathname.startsWith('/patients')) ||
+                      (item.href === '/practice' && pathname === '/')
                     
                     return (
                       <a 
                         key={item.href}
                         href={item.href} 
-                        className={`flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                        title={sidebarCollapsed ? item.label : undefined}
+                        className={`flex items-center ${sidebarCollapsed ? 'justify-center' : 'space-x-3'} px-3 py-3 rounded-xl text-base font-medium transition-colors ${
                           isActive
-                            ? 'bg-gradient-to-r from-blue-50 to-cyan-50 text-blue-700 border-r-2 border-blue-600' 
+                            ? 'bg-gradient-to-r from-blue-50 to-cyan-50 text-blue-700 border-l-4 border-blue-600' 
                             : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
                         }`}
                       >
-                        <div className={`w-2 h-2 rounded-full ${
+                        <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${
                           isActive ? 'bg-blue-600' : 'bg-gray-300'
                         }`} />
-                        <span>{item.label}</span>
-                        {item.label === 'Messages' && (
-                          <div className="ml-auto w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
-                            3
-                          </div>
-                        )}
-                        {item.label === 'Tasks' && (
-                          <div className="ml-auto w-5 h-5 bg-amber-500 text-white text-xs rounded-full flex items-center justify-center">
-                            7
-                          </div>
-                        )}
-                        {isClient && item.label === 'Ambient Scribe' && ambientScribe.isRecording() && (
-                          <div className="ml-auto w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-                        )}
-                        {isClient && item.label === 'Care Autopilot' && (
-                          <div className="ml-auto w-5 h-5 bg-green-500 text-white text-xs rounded-full flex items-center justify-center">
-                            {careAutopilot.getCareSignals().filter(s => s.status === 'new').length}
-                          </div>
+                        {!sidebarCollapsed && (
+                          <>
+                            <span className="flex-1">{item.label}</span>
+                            {item.label === 'Messages' && (
+                              <div className="w-6 h-6 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-semibold">
+                                3
+                              </div>
+                            )}
+                            {item.label === 'Tasks' && (
+                              <div className="w-6 h-6 bg-amber-500 text-white text-xs rounded-full flex items-center justify-center font-semibold">
+                                7
+                              </div>
+                            )}
+                            {isClient && item.label === 'Ambient Scribe' && ambientScribe.isRecording() && (
+                              <div className="w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse" />
+                            )}
+                            {isClient && item.label === 'Care Autopilot' && (
+                              <div className="w-6 h-6 bg-green-500 text-white text-xs rounded-full flex items-center justify-center font-semibold">
+                                {careAutopilot.getCareSignals().filter(s => s.status === 'new').length}
+                              </div>
+                            )}
+                          </>
                         )}
                       </a>
                     )
@@ -254,103 +298,102 @@ export default function RootLayout({
                 </div>
                 
                 {/* AI Features Separator */}
-                <div className="mt-8 pt-4 border-t border-gray-100">
-                  <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3 px-3">
-                    AI Features
+                {!sidebarCollapsed && (
+                  <div className="mt-8 pt-4 border-t border-gray-100">
+                    <div className="text-sm font-medium text-gray-400 uppercase tracking-wide mb-3 px-3">
+                      AI Features
+                    </div>
+                    <div className="space-y-1">
+                      <button className="flex items-center space-x-3 px-3 py-2.5 rounded-xl text-base text-gray-600 hover:bg-gray-50 w-full text-left">
+                        <div className="w-2.5 h-2.5 bg-cyan-500 rounded-full animate-pulse" />
+                        <span>Smart Insights</span>
+                      </button>
+                      <button className="flex items-center space-x-3 px-3 py-2.5 rounded-xl text-base text-gray-600 hover:bg-gray-50 w-full text-left">
+                        <div className="w-2.5 h-2.5 bg-green-500 rounded-full" />
+                        <span>Auto Reminders</span>
+                      </button>
+                    </div>
                   </div>
-                  <div className="space-y-1">
-                    <button className="flex items-center space-x-3 px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-50 w-full text-left">
-                      <div className="w-2 h-2 bg-cyan-500 rounded-full animate-pulse" />
-                      <span>Smart Insights</span>
-                    </button>
-                    <button className="flex items-center space-x-3 px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-50 w-full text-left">
-                      <div className="w-2 h-2 bg-green-500 rounded-full" />
-                      <span>Auto Reminders</span>
-                    </button>
-                  </div>
-                </div>
+                )}
               </div>
               
               {/* Bottom Status */}
               <div className="p-4 border-t border-gray-100">
-                <div className="flex items-center justify-between text-xs text-gray-500">
-                  <span>Practice Status</span>
-                  <div className="flex items-center space-x-1">
-                    <div className="w-2 h-2 bg-green-500 rounded-full" />
-                    <span>Online</span>
+                {sidebarCollapsed ? (
+                  <div className="flex justify-center">
+                    <div className="w-3 h-3 bg-green-500 rounded-full" title="Online" />
                   </div>
-                </div>
+                ) : (
+                  <div className="flex items-center justify-between text-sm text-gray-500">
+                    <span>Practice Status</span>
+                    <div className="flex items-center space-x-1.5">
+                      <div className="w-2.5 h-2.5 bg-green-500 rounded-full" />
+                      <span>Online</span>
+                    </div>
+                  </div>
+                )}
               </div>
             </nav>
             
             {/* Main Content */}
             <main className="flex-1 flex flex-col bg-gray-50">
-              {/* Modern Top Header */}
-              {/* Top Header - contains client-state driven controls, keep but avoid SSR-only values */}
+              {/* Top Header */}
               <header className="bg-white border-b border-gray-200 shadow-sm" suppressHydrationWarning>
                 <div className="px-6 py-3">
-                  <div className="flex items-center justify-between">
-                    {/* Left: Page Title & Breadcrumb */}
-                    <div className="flex items-center space-x-4">
-                      <h1 className="text-2xl font-semibold text-gray-900">
-                        {getPageTitle()}
+                  <div className="flex items-center justify-between gap-6">
+                    {/* Left: Practice Name & Page Title */}
+                    <div className="flex items-center space-x-4 min-w-0">
+                      <h1 className="text-xl font-semibold text-gray-900 truncate">
+                        Ceda GP Practice
                       </h1>
-                      {pathname !== '/' && (
-                        <div className="flex items-center text-sm text-gray-500">
-                          <span>•</span>
-                          <span className="ml-2">Today</span>
-                        </div>
-                      )}
+                      <div className="flex items-center text-sm text-gray-500">
+                        <span className="text-gray-300">/</span>
+                        <span className="ml-2 font-medium">{getPageTitle()}</span>
+                      </div>
                     </div>
                     
-                    {/* Center: Page Title (AI Omnibox moved to bottom) */}
-                    <div className="hidden lg:block flex-1 max-w-2xl mx-8 text-center">
-                      <h1 className="text-lg font-semibold text-gray-900">{getPageTitle()}</h1>
-                    </div>
+                    {/* Center: Global Search */}
+                    {isClient && !pathname.startsWith('/patient') && (
+                      <div className="flex-1 flex justify-center max-w-md mx-4">
+                        <GlobalSearch />
+                      </div>
+                    )}
                     
                     {/* Right: Controls */}
-                    <div className="flex items-center space-x-3">
+                    <div className="flex items-center gap-3 flex-shrink-0">
                       {/* Role Switcher */}
                       {isClient && <RoleSelector />}
                       
-                      {/* Autopilot Status */}
-                      <div className="flex items-center space-x-2 px-3 py-1.5 bg-gray-50 rounded-lg border">
-                        <div className={`w-2 h-2 rounded-full ${
-                          autopilotMode === 'scheduled' ? 'bg-green-500' : 
-                          autopilotMode === 'ask' ? 'bg-amber-500' : 'bg-gray-400'
-                        }`} />
-                        {isClient && (
-                          <select 
-                            value={autopilotMode}
-                            onChange={(e) => setAutopilotMode(e.target.value as any)}
-                            className="bg-transparent border-none text-sm font-medium text-gray-700 focus:ring-0 focus:outline-none"
-                          >
-                            <option value="manual">Manual</option>
-                            <option value="ask">Ask to run</option>
-                            <option value="scheduled">Scheduled</option>
-                          </select>
-                        )}
-                      </div>
+                      {/* Divider */}
+                      <div className="w-px h-8 bg-gray-200" />
+                      
+                      {/* Agent Governance Mode Selector */}
+                      {isClient && <ModeSelector />}
+                      
+                      {/* Divider */}
+                      <div className="w-px h-8 bg-gray-200" />
                       
                       {/* AI Action Trail */}
                       {isClient && (
                         <button 
                           onClick={() => setTimelineOpen(true)}
-                          className="flex items-center space-x-2 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                          className="flex items-center space-x-2 px-3 py-2 text-sm text-gray-600 hover:text-gray-900 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
                         >
                           <div className="w-2 h-2 bg-cyan-500 rounded-full animate-pulse" />
                           <span>AI Trail</span>
                         </button>
                       )}
                       
-                      {/* Command Bar Trigger */}
+                      {/* Chat History Button */}
                       {isClient && (
                         <button 
                           onClick={() => setConversationPanelOpen(true)}
-                          className="flex items-center space-x-2 px-4 py-1.5 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-lg text-sm hover:from-blue-700 hover:to-cyan-700 font-medium shadow-sm transition-all"
+                          className="w-10 h-10 flex items-center justify-center bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-lg hover:from-blue-700 hover:to-cyan-700 shadow-sm transition-all"
+                          title="View conversation history"
                         >
-                          <span>💬</span>
-                          <span className="hidden sm:inline">AI Chat</span>
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                          </svg>
                         </button>
                       )}
                     </div>
@@ -365,8 +408,8 @@ export default function RootLayout({
             </main>
           </div>
 
-          {/* ChatGPT-style Interface Components */}
-          {isClient && (
+          {/* ChatGPT-style Interface Components - only for practice routes */}
+          {isClient && (pathname === '/' || pathname.startsWith('/practice') || (!pathname.startsWith('/patient'))) && (
             <>
               {/* Bottom ChatGPT-style Command Bar */}
               <ChatGPTCommandBar
@@ -390,7 +433,7 @@ export default function RootLayout({
             </>
           )}
 
-          {isClient && (
+          {isClient && !pathname.startsWith('/patient') && (
             <PlanPreviewDrawer
               plan={currentPlan}
               isOpen={planPreviewOpen}
@@ -403,14 +446,14 @@ export default function RootLayout({
             />
           )}
 
-          {isClient && (
+          {isClient && !pathname.startsWith('/patient') && (
             <EventTimeline
               isOpen={timelineOpen}
               onClose={() => setTimelineOpen(false)}
             />
           )}
 
-          {isClient && (
+          {isClient && !pathname.startsWith('/patient') && (
             <FollowUpSuggestions
               completedPlan={completedPlan}
               isOpen={followUpsOpen}

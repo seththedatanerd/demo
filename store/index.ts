@@ -6,9 +6,11 @@ import { AutopilotSlice, createAutopilotSlice } from './slices/autopilot'
 import { DataSlice, createDataSlice } from './slices/data'
 import { CallSlice, createCallSlice } from './slices/calls'
 import { RoleSlice, createRoleSlice } from './slices/role'
+import { AIActionSlice, createAIActionSlice } from './slices/aiActions'
+import { ProductsSlice, createProductsSlice } from './slices/products'
 
 // Combined store type
-export type AppState = TimelineSlice & DemoSlice & AutopilotSlice & DataSlice & CallSlice & RoleSlice
+export type AppState = TimelineSlice & DemoSlice & AutopilotSlice & DataSlice & CallSlice & RoleSlice & AIActionSlice & ProductsSlice
 
 // Create the combined store
 export const useStore = create<AppState>()(
@@ -20,6 +22,8 @@ export const useStore = create<AppState>()(
       ...createDataSlice(...a),
       ...createCallSlice(...a),
       ...createRoleSlice(...a),
+      ...createAIActionSlice(...a),
+      ...createProductsSlice(...a),
     }),
     {
       name: 'data-ravens-store',
@@ -102,4 +106,22 @@ export const useRole = () => useStore((state) => ({
   permissions: state.permissions,
   setRole: state.setRole,
   hasPermission: state.hasPermission,
+}))
+
+export const useAIActions = () => useStore((state) => ({
+  aiActions: state.aiActions,
+  todaysActions: state.todaysActions,
+  logAIAction: state.logAIAction,
+  clearTodaysActions: state.clearTodaysActions,
+  getActionsByDate: state.getActionsByDate,
+  getActionsBySource: state.getActionsBySource,
+}))
+
+export const useProducts = () => useStore((state) => ({
+  products: state.products,
+  addProduct: state.addProduct,
+  updateProduct: state.updateProduct,
+  deleteProduct: state.deleteProduct,
+  toggleProductActive: state.toggleProductActive,
+  loadProductTemplate: state.loadProductTemplate,
 }))

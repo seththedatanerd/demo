@@ -5,9 +5,10 @@ import { TrendingUp, TrendingDown, Minus, BarChart3, PieChart, Table, MessageSqu
 
 interface AskResponseProps {
   response: AskResponseType
+  onSuggestionClick?: (suggestion: string) => void
 }
 
-export default function AskResponse({ response }: AskResponseProps) {
+export default function AskResponse({ response, onSuggestionClick }: AskResponseProps) {
   const getTypeIcon = () => {
     switch (response.type) {
       case 'chart': return <BarChart3 className="w-4 h-4" />
@@ -60,6 +61,24 @@ export default function AskResponse({ response }: AskResponseProps) {
           {response.type === 'table' && <TableVisualization data={response.data} />}
           {response.type === 'chart' && <ChartVisualization data={response.data} />}
           {response.type === 'metric' && <MetricVisualization data={response.data} />}
+        </div>
+      )}
+
+      {/* Follow-up Suggestions */}
+      {response.suggestions && response.suggestions.length > 0 && (
+        <div className="mt-4 pt-4 border-t border-gray-100">
+          <p className="text-xs text-gray-500 mb-2">You might also want to ask:</p>
+          <div className="flex flex-wrap gap-2">
+            {response.suggestions.map((suggestion, index) => (
+              <button
+                key={index}
+                onClick={() => onSuggestionClick?.(suggestion)}
+                className="inline-flex items-center px-3 py-1.5 text-xs bg-blue-50 text-blue-700 rounded-full border border-blue-100 cursor-pointer hover:bg-blue-100 transition-colors"
+              >
+                {suggestion}
+              </button>
+            ))}
+          </div>
         </div>
       )}
     </div>

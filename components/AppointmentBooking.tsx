@@ -1,17 +1,19 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useData, useRole } from '@/store'
 import { AvailabilityEngine } from '@/services/availability'
 import { AppointmentTemplateService } from '@/services/appointment-templates'
 import { AvailabilitySlot, AppointmentTemplate, EnhancedAppointment } from '@/types/appointments'
-import { Calendar, Clock, User, MapPin, AlertTriangle, CheckCircle, Sparkles } from 'lucide-react'
+import { Calendar, Clock, User, MapPin, CheckCircle, Sparkles, Search, UserPlus, X } from 'lucide-react'
 
 interface AppointmentBookingProps {
   isOpen: boolean
   onClose: () => void
   patientId?: string
   preselectedDate?: string
+  preselectedTime?: string
+  preselectedPractitionerId?: string
   onAppointmentBooked?: (appointment: EnhancedAppointment) => void
 }
 
@@ -20,20 +22,100 @@ export default function AppointmentBooking({
   onClose, 
   patientId, 
   preselectedDate,
+  preselectedTime,
+  preselectedPractitionerId,
   onAppointmentBooked 
 }: AppointmentBookingProps) {
-  const { patients, practitioners, sites, rooms, appointments } = useData()
+  const { patients, practitioners, sites, rooms, appointments, addPatient } = useData() as any
   const { hasPermission } = useRole()
   
   // Booking state
   const [selectedPatient, setSelectedPatient] = useState(patientId || '')
   const [selectedTemplate, setSelectedTemplate] = useState<AppointmentTemplate | null>(null)
   const [searchDate, setSearchDate] = useState(preselectedDate || new Date().toISOString().split('T')[0])
+  const [selectedPractitionerId, setSelectedPractitionerId] = useState(preselectedPractitionerId || '')
   const [duration, setDuration] = useState(30)
   const [availableSlots, setAvailableSlots] = useState<AvailabilitySlot[]>([])
   const [selectedSlot, setSelectedSlot] = useState<AvailabilitySlot | null>(null)
   const [loading, setLoading] = useState(false)
   const [showAISuggestions, setShowAISuggestions] = useState(false)
+  
+  // Patient search state
+  const [patientSearch, setPatientSearch] = useState('')
+  const [showPatientResults, setShowPatientResults] = useState(false)
+  const [showNewPatientForm, setShowNewPatientForm] = useState(false)
+  const [newPatientData, setNewPatientData] = useState({ name: '', phone: '', email: '', dob: '', address: '', postcode: '' })
+  const searchInputRef = useRef<HTMLInputElement>(null)
+  const searchResultsRef = useRef<HTMLDivElement>(null)
+
+  // Filter patients based on search
+  const filteredPatients = patientSearch.trim() 
+    ? patients.filter(p => 
+        p.name.toLowerCase().includes(patientSearch.toLowerCase()) ||
+        p.phone?.includes(patientSearch) ||
+        p.email?.toLowerCase().includes(patientSearch.toLowerCase())
+      ).slice(0, 8)
+    : []
+  
+  // Update state when preselections change
+  useEffect(() => {
+    if (preselectedDate) setSearchDate(preselectedDate)
+    if (preselectedPractitionerId) setSelectedPractitionerId(preselectedPractitionerId)
+  }, [preselectedDate, preselectedPractitionerId])
+
+  // Close search results when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (searchResultsRef.current && !searchResultsRef.current.contains(e.target as Node) &&
+          searchInputRef.current && !searchInputRef.current.contains(e.target as Node)) {
+        setShowPatientResults(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  // Select a patient from search results
+  const selectPatient = (patientId: string) => {
+    setSelectedPatient(patientId)
+    setPatientSearch('')
+    setShowPatientResults(false)
+  }
+
+  // Clear selected patient
+  const clearPatient = () => {
+    setSelectedPatient('')
+    setPatientSearch('')
+  }
+
+  // Add new patient
+  const handleAddNewPatient = () => {
+    if (!newPatientData.name.trim() || !newPatientData.address.trim() || !newPatientData.postcode.trim()) return
+    
+    const newPatient = {
+      id: `patient-${Date.now()}`,
+      name: newPatientData.name,
+      phone: newPatientData.phone || '+44...',
+      dob: newPatientData.dob || '1990-01-01',
+      insurer: 'Self-pay',
+      address: newPatientData.address,
+      postcode: newPatientData.postcode
+    }
+    
+    // Add patient to the store
+    if (addPatient) {
+      addPatient(newPatient)
+    }
+    
+    // Select the new patient
+    setSelectedPatient(newPatient.id)
+    setShowNewPatientForm(false)
+    setNewPatientData({ name: '', phone: '', email: '', dob: '', address: '', postcode: '' })
+    setPatientSearch('')
+  }
+  
+  // Check if new patient form is valid
+  const isNewPatientFormValid = newPatientData.name.trim() && newPatientData.address.trim() && newPatientData.postcode.trim()
   
   // Template suggestions
   const [templateSuggestions, setTemplateSuggestions] = useState<{
@@ -42,7 +124,8 @@ export default function AppointmentBooking({
     reasons: string[]
   }[]>([])
   
-  const patient = patients.find(p => p.id === selectedPatient)
+  // Find patient - check the store patients
+  const patient = patients.find((p: any) => p.id === selectedPatient)
   const templates = AppointmentTemplateService.getDefaultTemplates()
   
   // Load AI template suggestions when patient is selected
@@ -91,8 +174,7 @@ export default function AppointmentBooking({
         duration: selectedTemplate?.duration || duration,
         patientId: selectedPatient,
         patientPreferences: patient?.preferences ? {
-          timeOfDay: patient.preferences.appointmentTime,
-          practitionerId: patient.preferences.practitionerId
+          timeOfDay: patient.preferences.appointmentTime
         } : undefined,
         practitioners,
         sites,
@@ -159,23 +241,219 @@ export default function AppointmentBooking({
         </div>
         
         <div className="p-6 space-y-6">
-          {/* Patient Selection */}
+          {/* Patient Selection - Search Based */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Patient
             </label>
-            <select
-              value={selectedPatient}
-              onChange={(e) => setSelectedPatient(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">Select a patient</option>
-              {patients.map(patient => (
-                <option key={patient.id} value={patient.id}>
-                  {patient.name} - {patient.phone}
-                </option>
-              ))}
-            </select>
+            
+            {/* Selected Patient Display */}
+            {selectedPatient && patient ? (
+              <div className="flex items-center justify-between p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-medium">
+                    {patient.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                  </div>
+                  <div>
+                    <div className="font-medium text-gray-900">{patient.name}</div>
+                    <div className="text-sm text-gray-500">{patient.phone || patient.email || 'No contact info'}</div>
+                  </div>
+                </div>
+                <button
+                  onClick={clearPatient}
+                  className="p-1 text-gray-400 hover:text-gray-600 hover:bg-blue-100 rounded transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            ) : (
+              /* Patient Search Input */
+              <div className="relative">
+                <div className="flex items-center border border-gray-300 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500">
+                  <div className="pl-3 text-gray-400">
+                    <Search className="w-5 h-5" />
+                  </div>
+                  <input
+                    ref={searchInputRef}
+                    type="text"
+                    value={patientSearch}
+                    onChange={(e) => {
+                      setPatientSearch(e.target.value)
+                      setShowPatientResults(true)
+                    }}
+                    onFocus={() => setShowPatientResults(true)}
+                    placeholder="Search by name, phone, or email..."
+                    className="flex-1 px-3 py-2.5 text-sm focus:outline-none"
+                  />
+                  <button
+                    onClick={() => setShowNewPatientForm(true)}
+                    className="px-3 py-2 text-blue-600 hover:bg-blue-50 transition-colors border-l border-gray-200"
+                    title="Add new patient"
+                  >
+                    <UserPlus className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {/* Search Results Dropdown */}
+                {showPatientResults && patientSearch.trim() && (
+                  <div 
+                    ref={searchResultsRef}
+                    className="absolute z-20 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-64 overflow-y-auto"
+                  >
+                    {filteredPatients.length > 0 ? (
+                      <>
+                        {filteredPatients.map(p => (
+                          <button
+                            key={p.id}
+                            onClick={() => selectPatient(p.id)}
+                            className="w-full flex items-center space-x-3 px-4 py-3 hover:bg-gray-50 transition-colors text-left border-b border-gray-100 last:border-b-0"
+                          >
+                            <div className="w-9 h-9 bg-gray-200 rounded-full flex items-center justify-center text-gray-600 text-sm font-medium flex-shrink-0">
+                              {p.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="font-medium text-gray-900 truncate">{p.name}</div>
+                              <div className="text-sm text-gray-500 truncate">
+                                {p.phone && <span>{p.phone}</span>}
+                                {p.phone && p.email && <span className="mx-1">·</span>}
+                                {p.email && <span>{p.email}</span>}
+                              </div>
+                            </div>
+                          </button>
+                        ))}
+                        <button
+                          onClick={() => {
+                            setNewPatientData({ name: patientSearch, phone: '', email: '', dob: '', address: '', postcode: '' })
+                            setShowNewPatientForm(true)
+                            setShowPatientResults(false)
+                          }}
+                          className="w-full flex items-center space-x-3 px-4 py-3 hover:bg-blue-50 text-blue-600 transition-colors text-left"
+                        >
+                          <UserPlus className="w-5 h-5" />
+                          <span className="text-sm font-medium">Add "{patientSearch}" as new patient</span>
+                        </button>
+                      </>
+                    ) : (
+                      <div className="p-4">
+                        <p className="text-sm text-gray-500 text-center mb-3">No patients found matching "{patientSearch}"</p>
+                        <button
+                          onClick={() => {
+                            setNewPatientData({ name: patientSearch, phone: '', email: '', dob: '', address: '', postcode: '' })
+                            setShowNewPatientForm(true)
+                            setShowPatientResults(false)
+                          }}
+                          className="w-full flex items-center justify-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                        >
+                          <UserPlus className="w-4 h-4" />
+                          <span className="text-sm font-medium">Add New Patient</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* New Patient Form Modal */}
+            {showNewPatientForm && (
+              <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60]">
+                <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4">
+                  <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
+                    <h3 className="text-lg font-semibold text-gray-900">Add New Patient</h3>
+                    <button 
+                      onClick={() => setShowNewPatientForm(false)}
+                      className="p-1 text-gray-400 hover:text-gray-600 rounded transition-colors"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+                  
+                  <div className="p-5 space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
+                      <input
+                        type="text"
+                        value={newPatientData.name}
+                        onChange={(e) => setNewPatientData({ ...newPatientData, name: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                        placeholder="Enter patient's full name"
+                        autoFocus
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
+                      <input
+                        type="tel"
+                        value={newPatientData.phone}
+                        onChange={(e) => setNewPatientData({ ...newPatientData, phone: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                        placeholder="+44 7XXX XXXXXX"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+                      <input
+                        type="email"
+                        value={newPatientData.email}
+                        onChange={(e) => setNewPatientData({ ...newPatientData, email: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                        placeholder="patient@email.com"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Date of Birth</label>
+                      <input
+                        type="date"
+                        value={newPatientData.dob}
+                        onChange={(e) => setNewPatientData({ ...newPatientData, dob: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Address *</label>
+                      <input
+                        type="text"
+                        value={newPatientData.address}
+                        onChange={(e) => setNewPatientData({ ...newPatientData, address: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                        placeholder="123 High Street, London"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Postcode *</label>
+                      <input
+                        type="text"
+                        value={newPatientData.postcode}
+                        onChange={(e) => setNewPatientData({ ...newPatientData, postcode: e.target.value.toUpperCase() })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                        placeholder="SW1A 1AA"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center justify-end space-x-3 px-5 py-4 border-t border-gray-200 bg-gray-50 rounded-b-xl">
+                    <button
+                      onClick={() => setShowNewPatientForm(false)}
+                      className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleAddNewPatient}
+                      disabled={!isNewPatientFormValid}
+                      className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                    >
+                      Add Patient
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
           
           {/* AI Template Suggestions */}

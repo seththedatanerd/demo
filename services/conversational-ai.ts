@@ -50,8 +50,37 @@ class ConversationalAIService {
       // Keep only last 5 commands
       conversation.userContext.recentCommands = conversation.userContext.recentCommands.slice(0, 5)
     }
-
+    
     return message
+  }
+
+  // Add message to conversation (generic method for backward compatibility)
+  addMessage(sessionId: string, message: ConversationMessage): ConversationMessage {
+    const conversation = this.conversations.get(sessionId)
+    if (!conversation) throw new Error('Conversation not found')
+
+    conversation.messages.push(message)
+    return message
+  }
+
+  // Update user context
+  updateUserContext(sessionId: string, context: Partial<{ role: SystemRole; currentPage?: string }>): void {
+    const conversation = this.conversations.get(sessionId)
+    if (!conversation) throw new Error('Conversation not found')
+
+    if (context.role) {
+      conversation.userContext.role = context.role
+    }
+    if (context.currentPage) {
+      conversation.userContext.currentPage = context.currentPage
+    }
+  }
+
+  // Get conversation messages
+  getConversationMessages(sessionId: string): ConversationMessage[] {
+    const conversation = this.conversations.get(sessionId)
+    if (!conversation) return []
+    return conversation.messages
   }
 
   // Generate AI response based on context

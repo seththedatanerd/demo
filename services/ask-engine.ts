@@ -11,6 +11,7 @@ export interface AskResponse {
   timestamp: string
   confidence: number
   sources?: string[]
+  suggestions?: string[]
 }
 
 export interface TableData {
@@ -200,10 +201,10 @@ function generateInsights(question: string): string {
 }
 
 export async function askQuestion(question: string, context?: any): Promise<AskResponse> {
-  // Try AI-powered response first
+  // Try AI-powered response first (Gemini)
   try {
     const aiResponse = await practiceAI.answerQuestion(question, context)
-    if (aiResponse && aiResponse.confidence > 0.7) {
+    if (aiResponse && aiResponse.answer) {
       return {
         id: `ask-${Date.now()}`,
         question,
@@ -211,15 +212,16 @@ export async function askQuestion(question: string, context?: any): Promise<AskR
         type: aiResponse.type || 'text',
         data: aiResponse.data,
         timestamp: new Date().toISOString(),
-        confidence: aiResponse.confidence,
-        sources: aiResponse.sources
+        confidence: aiResponse.confidence || 0.8,
+        sources: aiResponse.sources || ['AI Analysis'],
+        suggestions: aiResponse.suggestions
       }
     }
   } catch (error) {
-    console.log('AI response failed, using pattern matching fallback')
+    console.log('AI response failed, using pattern matching fallback:', error)
   }
 
-  // Fallback to pattern matching
+  // Fallback to pattern matching for specific data visualizations
   for (const pattern of ASK_PATTERNS) {
     if (pattern.patterns.some(p => p.test(question))) {
       const data = pattern.generator(question)

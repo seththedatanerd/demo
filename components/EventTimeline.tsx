@@ -11,7 +11,7 @@ interface EventTimelineProps {
 }
 
 export default function EventTimeline({ isOpen, onClose }: EventTimelineProps) {
-  const { events, undoEvent, undoAllPlan, activePlan, retryFailed } = useTimeline()
+  const { events, undoEvent, undoAllPlan, activePlan } = useTimeline()
   const { getCallById } = useCalls()
   const [expandedPlans, setExpandedPlans] = useState<Set<string>>(new Set())
 
@@ -149,8 +149,9 @@ export default function EventTimeline({ isOpen, onClose }: EventTimelineProps) {
                       <div className="flex items-center space-x-2 ml-2">
                         {hasFailures && (
                           <button
-                            onClick={() => retryFailed(planId)}
-                            className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
+                            onClick={() => console.log('Retry failed not implemented')}
+                            className="px-2 py-1 text-xs bg-gray-100 text-gray-400 rounded cursor-not-allowed"
+                            disabled
                           >
                             Retry failed
                           </button>

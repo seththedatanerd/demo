@@ -576,68 +576,86 @@ RULES:
     }
   }
 
-  // Answer questions about practice data
+  // Answer questions about practice data using Gemini
   async answerQuestion(question: string, context?: any) {
-    if (!this.apiKey) {
-      return null // Fallback to pattern matching
-    }
-
     try {
-      const prompt = `You are an AI assistant for a medical practice management system. Answer this question about the practice data: "${question}"
+      // Build context summary for the AI
+      const contextSummary = context ? `
+PRACTICE DATA CONTEXT:
+- Role: ${context.role || 'staff'}
+- Total Patients: ${context.patients?.length || 0}
+- Total Appointments: ${context.appointments?.length || 0}
+- Total Invoices: ${context.invoices?.length || 0}
+- Pending Invoices: ${context.invoices?.filter((i: any) => i.status === 'pending' || i.status === 'Overdue').length || 0}
 
-Context: ${JSON.stringify(context, null, 2)}
+SAMPLE PATIENT DATA:
+${context.patients?.slice(0, 5).map((p: any) => `- ${p.name}: ${p.insurer} insurance, last seen ${p.lastSeen || 'unknown'}`).join('\n') || 'No patient data'}
 
-Provide a response with:
-1. A clear, conversational answer
-2. The type of response (text, table, chart, metric, insight)
-3. Any relevant data for visualization
-4. Confidence level (0-1)
+SAMPLE APPOINTMENTS:
+${context.appointments?.slice(0, 5).map((a: any) => `- ${a.patientName}: ${a.type} on ${a.date} at ${a.time}`).join('\n') || 'No appointment data'}
 
-Format as JSON:
+SAMPLE INVOICES:
+${context.invoices?.slice(0, 5).map((i: any) => `- ${i.patientName}: £${i.amount} (${i.status})`).join('\n') || 'No invoice data'}
+` : ''
+
+      const prompt = `You are a helpful AI assistant for a healthcare practice management system. A user is asking you a question. Provide a clear, informative, and professional response.
+
+USER QUESTION: "${question}"
+
+${contextSummary}
+
+INSTRUCTIONS:
+1. Answer the question directly and conversationally
+2. Use the context data when relevant
+3. Be specific with numbers and details when available
+4. Keep the response concise but informative (2-4 sentences typically)
+5. If the question relates to data you don't have, provide a helpful general response
+6. Be professional and healthcare-appropriate
+
+RESPONSE FORMAT (JSON):
 {
-  "answer": "Your conversational response",
-  "type": "text|table|chart|metric|insight", 
+  "answer": "Your conversational response here. Be specific and helpful.",
+  "type": "text",
   "confidence": 0.85,
-  "data": null, // or structured data for visualization
-  "sources": ["Practice Data", "Analytics Engine"]
+  "sources": ["Practice Data", "AI Analysis"],
+  "suggestions": ["Optional follow-up question 1", "Optional follow-up question 2"]
 }
 
-Keep responses professional, data-driven, and actionable. If you suggest a chart, provide the chart data structure.`
+RULES:
+- Respond ONLY with valid JSON
+- The "answer" field should be 2-4 sentences, conversational and helpful
+- Include relevant statistics when the data is available
+- Suggest 1-2 follow-up questions the user might want to ask
+- Type should usually be "text" unless showing tables/charts
+- Confidence should be 0.7-0.95 based on data availability`
 
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${this.apiKey}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: {
-            temperature: 0.7,
-            maxOutputTokens: 1000,
-          }
-        })
-      })
-
-      if (!response.ok) throw new Error('Gemini API failed')
-
-      const data = await response.json()
-      const text = data.candidates?.[0]?.content?.parts?.[0]?.text
-
-      if (text) {
-        try {
-          return JSON.parse(text)
-        } catch {
-          return {
-            answer: text,
-            type: 'text',
-            confidence: 0.7,
-            sources: ['AI Analysis']
-          }
+      const result = await this.model.generateContent(prompt)
+      const responseText = result.response.text().trim()
+      
+      // Try to parse JSON
+      try {
+        const cleanJson = responseText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
+        const parsed = JSON.parse(cleanJson)
+        return {
+          answer: parsed.answer || responseText,
+          type: parsed.type || 'text',
+          confidence: parsed.confidence || 0.8,
+          sources: parsed.sources || ['AI Analysis'],
+          suggestions: parsed.suggestions
+        }
+      } catch {
+        // If JSON parsing fails, return the raw text
+        return {
+          answer: responseText,
+          type: 'text',
+          confidence: 0.75,
+          sources: ['AI Analysis']
         }
       }
     } catch (error) {
       console.error('AI question answering failed:', error)
+      return null
     }
-
-    return null
   }
 }
 

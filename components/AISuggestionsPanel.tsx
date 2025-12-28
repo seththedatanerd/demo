@@ -206,7 +206,7 @@ export default function AISuggestionsPanel({ onPlanCreated }: AISuggestionsPanel
       if (plan) {
         onPlanCreated(plan)
         // Auto-dismiss after action
-        setDismissedIds(prev => new Set([...prev, suggestion.id]))
+        setDismissedIds(prev => new Set(Array.from(prev).concat([suggestion.id])))
       }
     } catch (error) {
       console.error('Failed to create plan from suggestion:', error)
@@ -215,7 +215,7 @@ export default function AISuggestionsPanel({ onPlanCreated }: AISuggestionsPanel
 
   const handleDismiss = (suggestionId: string, e: React.MouseEvent) => {
     e.stopPropagation()
-    setDismissedIds(prev => new Set([...prev, suggestionId]))
+    setDismissedIds(prev => new Set(Array.from(prev).concat([suggestionId])))
   }
 
   const visibleSuggestions = suggestions.filter(s => !dismissedIds.has(s.id))

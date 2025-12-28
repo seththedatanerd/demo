@@ -9,10 +9,11 @@ export interface CallRecord {
   endTime?: string
   mode: 'capture' | 'shadow'
   status: 'active' | 'completed'
-  intent?: 'reschedule' | 'new_booking' | 'prescription' | 'billing' | 'inquiry' | 'other'
+  intent?: 'reschedule' | 'new_booking' | 'prescription' | 'billing' | 'inquiry' | 'test_results' | 'admin_request' | 'other'
   summary?: string
   keyDetails?: string
   transcript?: string[] // Placeholder lines for demo
+  consentGiven?: boolean // Patient consented to AI note-taking
 }
 
 export interface CallSlice {

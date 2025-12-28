@@ -457,6 +457,7 @@ export default function ConversationalCommandBar({ isOpen, onClose, onPlanCreate
       {/* Clarification Modal */}
       {showClarificationModal && clarificationPlan && (
         <ClarificationModal
+          isOpen={showClarificationModal}
           plan={clarificationPlan}
           onClose={() => setShowClarificationModal(false)}
           onSubmit={(answers) => {
