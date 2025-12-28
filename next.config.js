@@ -4,8 +4,8 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
-  // If deploying to username.github.io/repo-name, set basePath
-  // basePath: '/demo',
+  basePath: '/demo',
+  assetPrefix: '/demo/',
   trailingSlash: true,
 }
 
