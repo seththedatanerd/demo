@@ -91,12 +91,12 @@ export default function Patients() {
 
   // Get unique values for filter options
   const insurerOptions = useMemo(() => 
-    [...new Set(patients.map(p => p.insurer).filter(Boolean))].sort(),
+    Array.from(new Set(patients.map(p => p.insurer).filter(Boolean))).sort(),
     [patients]
   )
   
   const riskFactorOptions = useMemo(() => 
-    [...new Set(patients.flatMap(p => p.riskFactors || []))].sort(),
+    Array.from(new Set(patients.flatMap(p => p.riskFactors || []))).sort(),
     [patients]
   )
 
