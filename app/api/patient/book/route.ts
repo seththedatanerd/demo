@@ -74,7 +74,7 @@ export async function GET(request: NextRequest) {
       // Add realistic delay
       await new Promise(resolve => setTimeout(resolve, 800))
 
-      const aiResult = await practiceAI.answerQuestion(bookingPrompt)
+      const aiResult = await practiceAI.answerQuestion(bookingPrompt) as any
       
       let slots = []
       if (aiResult?.data && Array.isArray(aiResult.data)) {
