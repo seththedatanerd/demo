@@ -1316,7 +1316,7 @@ To update your communication preferences: {unsubscribe_link}`
                       value={newCampaign.schedule?.type || 'immediate'}
                       onChange={(e) => setNewCampaign({
                         ...newCampaign,
-                        schedule: { ...newCampaign.schedule, type: e.target.value as any }
+                        schedule: { type: e.target.value as 'immediate' | 'scheduled' | 'recurring', ...newCampaign.schedule }
                       })}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
@@ -1335,7 +1335,7 @@ To update your communication preferences: {unsubscribe_link}`
                           value={newCampaign.schedule?.scheduledDate || ''}
                           onChange={(e) => setNewCampaign({
                             ...newCampaign,
-                            schedule: { ...newCampaign.schedule, scheduledDate: e.target.value }
+                            schedule: { type: 'scheduled', ...newCampaign.schedule, scheduledDate: e.target.value }
                           })}
                           className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         />
@@ -1347,7 +1347,7 @@ To update your communication preferences: {unsubscribe_link}`
                           value={newCampaign.schedule?.scheduledTime || '09:00'}
                           onChange={(e) => setNewCampaign({
                             ...newCampaign,
-                            schedule: { ...newCampaign.schedule, scheduledTime: e.target.value }
+                            schedule: { type: 'scheduled', ...newCampaign.schedule, scheduledTime: e.target.value }
                           })}
                           className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         />
@@ -1363,7 +1363,7 @@ To update your communication preferences: {unsubscribe_link}`
                           value={newCampaign.schedule?.recurringFrequency || 'weekly'}
                           onChange={(e) => setNewCampaign({
                             ...newCampaign,
-                            schedule: { ...newCampaign.schedule, recurringFrequency: e.target.value as any }
+                            schedule: { type: 'recurring', ...newCampaign.schedule, recurringFrequency: e.target.value as 'daily' | 'weekly' | 'monthly' }
                           })}
                           className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         >
@@ -1378,7 +1378,7 @@ To update your communication preferences: {unsubscribe_link}`
                           value={newCampaign.schedule?.recurringDay || 1}
                           onChange={(e) => setNewCampaign({
                             ...newCampaign,
-                            schedule: { ...newCampaign.schedule, recurringDay: parseInt(e.target.value) }
+                            schedule: { type: 'recurring', ...newCampaign.schedule, recurringDay: parseInt(e.target.value) }
                           })}
                           className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         >
@@ -1619,7 +1619,7 @@ To update your communication preferences: {unsubscribe_link}`
                   <div className="relative">
                     <div className="flex items-center bg-white border-2 border-gray-200 rounded-lg focus-within:border-cyan-400 focus-within:shadow-[0_0_0_3px_rgba(34,211,238,0.1)] transition-all duration-300">
                       <div className="flex items-center pl-4 pr-2 text-cyan-500">
-                        <span className="font-mono text-sm font-medium">></span>
+                        <span className="font-mono text-sm font-medium">&gt;</span>
                       </div>
                       <input
                         type="text"
