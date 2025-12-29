@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState, useEffect } from 'react'
+import { useMemo, useState, useEffect, Suspense } from 'react'
 import { useData } from '@/store'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { 
@@ -20,7 +20,7 @@ interface BillingSettings {
   reminderDays: number[]
 }
 
-export default function Billing() {
+function BillingContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { invoices, patients, appointments, updateInvoice, addInvoice, services } = useData() as any
@@ -1269,4 +1269,12 @@ function getStatusColor(status: InvoiceStatus) {
     case 'Refunded': return 'bg-purple-100 text-purple-800 border-purple-200'
     default: return 'bg-gray-100 text-gray-800 border-gray-200'
   }
+}
+
+export default function Billing() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-gray-50 flex items-center justify-center">Loading billing...</div>}>
+      <BillingContent />
+    </Suspense>
+  )
 }
